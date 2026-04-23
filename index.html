@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Vel Tech Smart Navigation</title>
+<title>Smart Campus Navigation (Tiruttani Demo)</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
@@ -40,7 +40,7 @@ color:#0077ff;
 <body>
 
 <div id="panel">
-<h3>Vel Tech Navigation</h3>
+<h3>Campus Navigation</h3>
 
 <label>Mode:</label>
 <select id="mode">
@@ -71,31 +71,34 @@ color:#0077ff;
 
 <script>
 
-/* MAP */
-const map=L.map('map').setView([13.176508, 79.621037],18);
+/* ---------- MAP ---------- */
+const map=L.map('map').setView([13.1762,79.6210],18);
 
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
 maxZoom:19
 }).addTo(map);
 
-/* NODES */
+/* ---------- NODES (TIRUTTANI DEMO) ---------- */
 const nodes={
-gate:[13.176508, 79.621037],
-entrance:[13.176508, 79.621037],
-ground_corridor:[13.176508, 79.621037],
-canteen:[13.176388, 79.620728],
-stairs_gf:[13.1579,80.1545],
 
-stairs_f1:[13.1580,80.1546],
-stairs_f2:[13.1583,80.1549],
-stairs_f3:[13.1586,80.1552],
+gate:[13.175900,79.620800],
+entrance:[13.176000,79.620900],
+ground_corridor:[13.176100,79.621000],
+canteen:[13.176200,79.620700],
 
-corridor_f3:[13.1587,80.1553],
-it_department:[13.176388, 79.620728],
-library:[13.1585,80.1551]
+stairs_gf:[13.176200,79.621100],
+stairs_f1:[13.176300,79.621200],
+stairs_f2:[13.176400,79.621300],
+stairs_f3:[13.176500,79.621400],
+
+corridor_f3:[13.176600,79.621500],
+it_department:[13.176700,79.621600],
+
+library:[13.176500,79.621000]
+
 };
 
-/* GRAPH */
+/* ---------- GRAPH ---------- */
 const graph={
 gate:{entrance:1},
 entrance:{gate:1,ground_corridor:1},
@@ -112,40 +115,55 @@ it_department:{corridor_f3:1},
 library:{corridor_f3:1}
 };
 
-/* DIJKSTRA */
+/* ---------- DIJKSTRA ---------- */
 function dijkstra(start,end){
+
 const dist={},prev={},list=Object.keys(graph);
-list.forEach(n=>{dist[n]=Infinity;prev[n]=null;});
+
+list.forEach(n=>{
+dist[n]=Infinity;
+prev[n]=null;
+});
+
 dist[start]=0;
 
 while(list.length){
+
 list.sort((a,b)=>dist[a]-dist[b]);
+
 let c=list.shift();
+
 if(c===end) break;
 
 for(let nb in graph[c]){
+
 let alt=dist[c]+graph[c][nb];
+
 if(alt<dist[nb]){
 dist[nb]=alt;
 prev[nb]=c;
 }
+
 }
+
 }
 
 const path=[];
 let u=end;
+
 while(u){
 path.unshift(u);
 u=prev[u];
 }
+
 return path;
 }
 
-/* VARIABLES */
+/* ---------- VARIABLES ---------- */
 let currentPath=[];
 let fullLine,coveredLine,user;
 
-/* START */
+/* ---------- START ---------- */
 function startNav(){
 
 const src=document.getElementById("source").value;
@@ -164,7 +182,7 @@ gpsMode(dest);
 
 }
 
-/* DRAW */
+/* ---------- DRAW PATH ---------- */
 function drawPath(){
 
 if(fullLine) map.removeLayer(fullLine);
@@ -172,19 +190,29 @@ if(coveredLine) map.removeLayer(coveredLine);
 
 const coords=currentPath.map(n=>nodes[n]);
 
-fullLine=L.polyline(coords,{color:"blue",weight:5}).addTo(map);
-coveredLine=L.polyline([coords[0]],{color:"green",weight:5}).addTo(map);
+fullLine=L.polyline(coords,{
+color:"blue",
+weight:5
+}).addTo(map);
+
+coveredLine=L.polyline([coords[0]],{
+color:"green",
+weight:5
+}).addTo(map);
 
 }
 
-/* SIMULATION */
+/* ---------- SIMULATION MODE ---------- */
 function simulate(){
 
 const coords=currentPath.map(n=>nodes[n]);
 
 let i=0;
 
-user=L.circleMarker(coords[0],{radius:8,color:"red"}).addTo(map);
+user=L.circleMarker(coords[0],{
+radius:8,
+color:"red"
+}).addTo(map);
 
 const int=setInterval(()=>{
 
@@ -192,7 +220,7 @@ i++;
 
 if(i>=coords.length){
 clearInterval(int);
-update("Reached destination");
+update("Destination reached");
 return;
 }
 
@@ -205,7 +233,7 @@ update("Moving...");
 
 }
 
-/* GPS MODE */
+/* ---------- GPS MODE ---------- */
 function gpsMode(dest){
 
 navigator.geolocation.watchPosition(pos=>{
@@ -218,44 +246,51 @@ user=L.circleMarker(p,{radius:8,color:"red"}).addTo(map);
 user.setLatLng(p);
 }
 
+/* find nearest node */
 let nearest=findNearest(p);
 
+/* reroute */
 if(!currentPath.includes(nearest)){
 update("Re-routing...");
 currentPath=dijkstra(nearest,dest);
 drawPath();
 }
 
+/* update path */
 coveredLine.addLatLng(p);
 
-update("Follow path");
+update("Follow the path");
 
 });
 
 }
 
-/* FIND NEAREST */
+/* ---------- FIND NEAREST NODE ---------- */
 function findNearest(p){
 
-let min=Infinity,near=null;
+let min=Infinity;
+let near=null;
 
 for(let k in nodes){
+
 let d=map.distance(p,nodes[k]);
+
 if(d<min){
 min=d;
 near=k;
 }
+
 }
 
 return near;
 }
 
-/* UI */
+/* ---------- UI ---------- */
 function update(t){
 document.getElementById("instruction").innerText=t;
 }
 
-/* MARKERS */
+/* ---------- MARKERS ---------- */
 for(let key in nodes){
 L.marker(nodes[key]).addTo(map).bindPopup(key);
 }
