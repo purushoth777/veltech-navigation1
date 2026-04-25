@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Smart Campus Navigation (Tiruttani Demo)</title>
+<title>Smart Campus Navigation - Premium</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
@@ -13,14 +13,14 @@ body{margin:0;font-family:Arial;}
 
 #panel{
 position:absolute;
-top:15px;
-left:15px;
+top:10px;
+left:10px;
 background:white;
 padding:12px;
 border-radius:10px;
 z-index:1000;
 box-shadow:0 2px 10px rgba(0,0,0,0.3);
-width:240px;
+width:260px;
 }
 
 select,button{
@@ -31,8 +31,26 @@ padding:6px;
 
 #instruction{
 margin-top:8px;
-font-weight:bold;
 color:#0077ff;
+font-weight:bold;
+}
+
+#floorUI{
+position:absolute;
+bottom:20px;
+right:20px;
+background:white;
+padding:10px;
+border-radius:10px;
+box-shadow:0 2px 10px rgba(0,0,0,0.3);
+z-index:1000;
+}
+
+.floorBtn{
+display:block;
+margin:5px;
+padding:6px;
+cursor:pointer;
 }
 </style>
 </head>
@@ -42,45 +60,49 @@ color:#0077ff;
 <div id="panel">
 <h3>Campus Navigation</h3>
 
-<label>Mode:</label>
 <select id="mode">
 <option value="simulate">Simulate Mode</option>
 <option value="gps">GPS Mode</option>
 </select>
 
-<label>Source:</label>
 <select id="source">
 <option value="gate">Gate</option>
 <option value="canteen">Canteen</option>
 <option value="library">Library</option>
 </select>
 
-<label>Destination:</label>
 <select id="destination">
 <option value="it_department">IT Department</option>
 <option value="canteen">Canteen</option>
 <option value="library">Library</option>
 </select>
 
-<button onclick="startNav()">Start Navigation</button>
+<button onclick="startNav()">Start</button>
 
 <div id="instruction">Ready</div>
+</div>
+
+<!-- FLOOR UI -->
+<div id="floorUI">
+<button class="floorBtn" onclick="setFloor('GF')">Ground</button>
+<button class="floorBtn" onclick="setFloor('F1')">1st</button>
+<button class="floorBtn" onclick="setFloor('F2')">2nd</button>
+<button class="floorBtn" onclick="setFloor('F3')">3rd</button>
 </div>
 
 <div id="map"></div>
 
 <script>
 
-/* ---------- MAP ---------- */
+/* MAP */
 const map=L.map('map').setView([13.1762,79.6210],18);
 
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
 maxZoom:19
 }).addTo(map);
 
-/* ---------- NODES (TIRUTTANI DEMO) ---------- */
+/* NODES */
 const nodes={
-
 gate:[13.175900,79.620800],
 entrance:[13.176000,79.620900],
 ground_corridor:[13.176100,79.621000],
@@ -95,10 +117,9 @@ corridor_f3:[13.176600,79.621500],
 it_department:[13.176700,79.621600],
 
 library:[13.176500,79.621000]
-
 };
 
-/* ---------- GRAPH ---------- */
+/* GRAPH */
 const graph={
 gate:{entrance:1},
 entrance:{gate:1,ground_corridor:1},
@@ -115,129 +136,96 @@ it_department:{corridor_f3:1},
 library:{corridor_f3:1}
 };
 
-/* ---------- DIJKSTRA ---------- */
+/* DIJKSTRA */
 function dijkstra(start,end){
-
 const dist={},prev={},list=Object.keys(graph);
-
-list.forEach(n=>{
-dist[n]=Infinity;
-prev[n]=null;
-});
-
+list.forEach(n=>{dist[n]=Infinity;prev[n]=null;});
 dist[start]=0;
 
 while(list.length){
-
 list.sort((a,b)=>dist[a]-dist[b]);
-
 let c=list.shift();
-
 if(c===end) break;
 
 for(let nb in graph[c]){
-
 let alt=dist[c]+graph[c][nb];
-
 if(alt<dist[nb]){
 dist[nb]=alt;
 prev[nb]=c;
 }
-
 }
-
 }
 
 const path=[];
 let u=end;
-
 while(u){
 path.unshift(u);
 u=prev[u];
 }
-
 return path;
 }
 
-/* ---------- VARIABLES ---------- */
+/* VARIABLES */
 let currentPath=[];
 let fullLine,coveredLine,user;
 
-/* ---------- START ---------- */
+/* START */
 function startNav(){
-
 const src=document.getElementById("source").value;
 const dest=document.getElementById("destination").value;
 const mode=document.getElementById("mode").value;
 
 currentPath=dijkstra(src,dest);
-
 drawPath();
+
+speak("Navigation started");
 
 if(mode==="simulate"){
 simulate();
 }else{
 gpsMode(dest);
 }
-
 }
 
-/* ---------- DRAW PATH ---------- */
+/* DRAW PATH */
 function drawPath(){
-
 if(fullLine) map.removeLayer(fullLine);
 if(coveredLine) map.removeLayer(coveredLine);
 
 const coords=currentPath.map(n=>nodes[n]);
 
-fullLine=L.polyline(coords,{
-color:"blue",
-weight:5
-}).addTo(map);
-
-coveredLine=L.polyline([coords[0]],{
-color:"green",
-weight:5
-}).addTo(map);
-
+fullLine=L.polyline(coords,{color:"blue",weight:5}).addTo(map);
+coveredLine=L.polyline([coords[0]],{color:"green",weight:5}).addTo(map);
 }
 
-/* ---------- SIMULATION MODE ---------- */
+/* SIMULATION */
 function simulate(){
-
 const coords=currentPath.map(n=>nodes[n]);
-
 let i=0;
 
-user=L.circleMarker(coords[0],{
-radius:8,
-color:"red"
-}).addTo(map);
+user=L.circleMarker(coords[0],{radius:8,color:"red"}).addTo(map);
 
 const int=setInterval(()=>{
-
 i++;
 
 if(i>=coords.length){
 clearInterval(int);
-update("Destination reached");
+update("Reached destination");
+speak("Destination reached");
 return;
 }
 
 user.setLatLng(coords[i]);
 coveredLine.addLatLng(coords[i]);
 
-update("Moving...");
+giveDirection(coords[i-1],coords[i]);
 
 },1500);
-
 }
 
-/* ---------- GPS MODE ---------- */
+/* GPS MODE */
 function gpsMode(dest){
-
 navigator.geolocation.watchPosition(pos=>{
-
 const p=[pos.coords.latitude,pos.coords.longitude];
 
 if(!user){
@@ -246,51 +234,62 @@ user=L.circleMarker(p,{radius:8,color:"red"}).addTo(map);
 user.setLatLng(p);
 }
 
-/* find nearest node */
 let nearest=findNearest(p);
 
-/* reroute */
 if(!currentPath.includes(nearest)){
 update("Re-routing...");
+speak("Re-routing");
 currentPath=dijkstra(nearest,dest);
 drawPath();
 }
 
-/* update path */
 coveredLine.addLatLng(p);
-
-update("Follow the path");
-
 });
-
 }
 
-/* ---------- FIND NEAREST NODE ---------- */
+/* FIND NEAREST */
 function findNearest(p){
-
-let min=Infinity;
-let near=null;
-
+let min=Infinity,near=null;
 for(let k in nodes){
-
 let d=map.distance(p,nodes[k]);
-
-if(d<min){
-min=d;
-near=k;
+if(d<min){min=d;near=k;}
 }
-
-}
-
 return near;
 }
 
-/* ---------- UI ---------- */
+/* TURN DIRECTION */
+function giveDirection(a,b){
+
+const dx=b[1]-a[1];
+const dy=b[0]-a[0];
+
+let text="Go straight";
+
+if(Math.abs(dx)>Math.abs(dy)){
+text = dx>0 ? "Turn right" : "Turn left";
+}
+
+update(text);
+speak(text);
+}
+
+/* FLOOR SWITCH */
+function setFloor(floor){
+update("Viewing "+floor+" Floor");
+}
+
+/* VOICE */
+function speak(text){
+const msg=new SpeechSynthesisUtterance(text);
+speechSynthesis.speak(msg);
+}
+
+/* UI */
 function update(t){
 document.getElementById("instruction").innerText=t;
 }
 
-/* ---------- MARKERS ---------- */
+/* MARKERS */
 for(let key in nodes){
 L.marker(nodes[key]).addTo(map).bindPopup(key);
 }
